@@ -9,34 +9,39 @@ import axios from "axios";
 
 import "./App.css";
 
-// Remove or modify these problematic API calls:
-// - https://extensions.aitopia.ai/ai/prompts
-// - https://extensions.aitopia.ai/languages/lang/get/lang/en
-// - https://extensions.aitopia.ai/ai/model_settings
-// - https://extensions.aitopia.ai/extensions/app/get_key
-
-// If you need these services, consider:
-// 1. Proxying them through your backend
-// 2. Using alternative services
-// 3. Implementing the functionality locally
-
 function App() {
   const [code, setCode] = useState(` function sum() {
-  return 1 + 1
-}`);
-
+    return 1 + 1
+  }`);
   const [review, setReview] = useState(``);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     prism.highlightAll();
   }, []);
 
   async function reviewCode() {
-    const response = await axios.post(
-      `${import.meta.env.VITE_API_URL}/ai/get-response`,
-      { code }
-    );
-    setReview(response.data);
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/ai/get-response`,
+        { code },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      setReview(response.data);
+    } catch (err) {
+      console.error("Review error:", err);
+      setError("Failed to get code review. Please try again.");
+      setReview("");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -46,7 +51,7 @@ function App() {
           <div className="code">
             <Editor
               value={code}
-              onValueChange={(code) => setCode(code)}
+              onValueChange={setCode}
               highlight={(code) =>
                 prism.highlight(code, prism.languages.javascript, "javascript")
               }
@@ -61,12 +66,16 @@ function App() {
               }}
             />
           </div>
-          <div onClick={reviewCode} className="review">
-            Review
-          </div>
+          <button onClick={reviewCode} className="review" disabled={loading}>
+            {loading ? "Reviewing..." : "Review"}
+          </button>
         </div>
         <div className="right">
-          <Markdown rehypePlugins={[rehypeHighlight]}>{review}</Markdown>
+          {error ? (
+            <div className="error">{error}</div>
+          ) : (
+            <Markdown rehypePlugins={[rehypeHighlight]}>{review}</Markdown>
+          )}
         </div>
       </main>
     </>
